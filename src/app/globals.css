@@ -11,7 +11,7 @@ body {
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 2rem 1rem;
 }
@@ -35,14 +35,31 @@ body {
 
 .editor-container {
   display: flex;
+  gap: 2rem;
+  min-height: 100vh; /* Ensure content is tall enough to scroll */
+}
+
+.animation-column {
+  flex: 1;
+  position: sticky;
+  top: 2rem; /* Stick to top with some padding */
+  height: fit-content;
+  max-height: calc(100vh - 4rem); /* Don't exceed viewport */
+  display: flex;
   flex-direction: column;
+  justify-content: center;
   align-items: center;
-  gap: 1.5rem;
+  padding: 1rem;
+}
+
+.controls-column {
+  flex: 1;
+  padding: 1rem 1rem 1rem 0;
+  /* No overflow or height restrictions - let it flow naturally */
 }
 
 .controls {
   width: 100%;
-  max-width: 28rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -78,7 +95,7 @@ body {
 
 .animation-container {
   width: 100%;
-  max-width: 32rem;
+  max-width: 500px;
   aspect-ratio: 1;
   border: 2px solid #e5e7eb;
   border-radius: 0.5rem;
@@ -87,4 +104,31 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 1024px) {
+  .editor-container {
+    flex-direction: column;
+    min-height: auto;
+  }
+  
+  .animation-column {
+    position: static; /* Remove sticky on mobile */
+    flex: none;
+    order: 1;
+    height: auto;
+    max-height: none;
+  }
+  
+  .controls-column {
+    padding: 1rem;
+    flex: none;
+    order: 2;
+  }
+  
+  .animation-container {
+    max-width: 400px;
+    margin: 0 auto;
+  }
 }
