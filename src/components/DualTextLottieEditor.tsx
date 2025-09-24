@@ -28,6 +28,14 @@ export default function DualTextLottieEditor({ className }: DualTextLottieEditor
   const [isLoaded, setIsLoaded] = useState(false)
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null)
   
+  // Player controls state
+  const [isPlaying, setIsPlaying] = useState(true)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [speed, setSpeed] = useState(1) // Changed default from 0.2 to 1
+  const [loop, setLoop] = useState(true)
+  const [showBackground, setShowBackground] = useState(false)
+  
   // Font mapping - lottie name vs CSS name
   const availableFonts = [
     { name: 'Season-SansRegular', display: 'Season Sans (Original)' },
@@ -227,13 +235,27 @@ export default function DualTextLottieEditor({ className }: DualTextLottieEditor
       container: containerRef.current,
       renderer: 'svg',
       animationData: animationData,
-      autoplay: true,
-      loop: true
+      autoplay: isPlaying,
+      loop: loop
     })
 
-    // Set slower speed (20% of original)
+    // Set speed and get duration
     if (lottieDataRef.current) {
-      lottieDataRef.current.setSpeed(0.2)
+      lottieDataRef.current.setSpeed(speed)
+      setDuration(lottieDataRef.current.getDuration(true))
+      
+      // Add event listeners for animation events
+      lottieDataRef.current.addEventListener('enterFrame', () => {
+        if (lottieDataRef.current) {
+          setCurrentTime(lottieDataRef.current.currentFrame)
+        }
+      })
+      
+      lottieDataRef.current.addEventListener('complete', () => {
+        if (!loop) {
+          setIsPlaying(false)
+        }
+      })
     }
 
     console.log(`🎉 Animation reloaded with ${textLayers.length} text layers!`)
@@ -242,12 +264,52 @@ export default function DualTextLottieEditor({ className }: DualTextLottieEditor
     makeTextLayersClickable()
   }
 
-  // Update when text layers change
+  // Player control functions
+  const togglePlayPause = () => {
+    if (!lottieDataRef.current) return
+    
+    if (isPlaying) {
+      lottieDataRef.current.pause()
+    } else {
+      lottieDataRef.current.play()
+    }
+    setIsPlaying(!isPlaying)
+  }
+
+  const handleTimelineChange = (newTime: number) => {
+    if (!lottieDataRef.current) return
+    
+    lottieDataRef.current.goToAndStop(newTime, true)
+    // Don't set currentTime here as it's already set in the onChange handler
+  }
+
+  const handleSpeedChange = (newSpeed: number) => {
+    if (!lottieDataRef.current) return
+    
+    lottieDataRef.current.setSpeed(newSpeed)
+    setSpeed(newSpeed)
+  }
+
+  const toggleLoop = () => {
+    const newLoop = !loop
+    setLoop(newLoop)
+    
+    if (lottieDataRef.current) {
+      // Recreate animation with new loop setting
+      updateAndReload()
+    }
+  }
+
+  const toggleBackground = () => {
+    setShowBackground(!showBackground)
+  }
+
+  // Update when text layers or player settings change
   useEffect(() => {
     if (isLoaded && textLayers.length > 0) {
       updateAndReload()
     }
-  }, [textLayers, isLoaded])
+  }, [textLayers, isLoaded, speed, loop, isPlaying])
 
   // Cleanup
   useEffect(() => {
@@ -599,12 +661,253 @@ export default function DualTextLottieEditor({ className }: DualTextLottieEditor
     <div className={`editor-container ${className || ''}`}>
       {/* Left Column - Sticky Animation Preview */}
       <div className="animation-column">
-        <div className="animation-container">
+        <div className="animation-container" style={{
+          backgroundColor: showBackground ? '#f0f0f0' : 'transparent',
+          transition: 'background-color 0.3s ease'
+        }}>
           <div 
             ref={containerRef}
             style={{ width: '100%', height: '100%' }}
           />
         </div>
+        
+        {/* Player Controls */}
+        {isLoaded && (
+          <div style={{
+            marginTop: '16px',
+            width: '100%'
+          }}>
+            {/* Play/Pause and Loop Controls */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button
+                  onClick={togglePlayPause}
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    backgroundColor: 'white',
+                    border: '2px solid #e5e5e5',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#22c55e'
+                    e.currentTarget.style.backgroundColor = '#f0fdf4'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#e5e5e5'
+                    e.currentTarget.style.backgroundColor = 'white'
+                  }}
+                >
+                  {isPlaying ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <rect x="6" y="4" width="4" height="16" fill="currentColor"/>
+                      <rect x="14" y="4" width="4" height="16" fill="currentColor"/>
+                    </svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <polygon points="5,3 19,12 5,21" fill="currentColor"/>
+                    </svg>
+                  )}
+                </button>
+                
+                <button
+                  onClick={toggleBackground}
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    backgroundColor: 'white',
+                    border: '2px solid #e5e5e5',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#22c55e'
+                    e.currentTarget.style.backgroundColor = '#f0fdf4'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#e5e5e5'
+                    e.currentTarget.style.backgroundColor = 'white'
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/>
+                    <rect x="7" y="7" width="10" height="10" rx="1" fill="currentColor"/>
+                  </svg>
+                </button>
+              </div>
+              
+              {/* Loop Toggle Switch */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}>Loop</span>
+                <div
+                  onClick={toggleLoop}
+                  style={{
+                    width: '48px',
+                    height: '24px',
+                    backgroundColor: loop ? '#22c55e' : '#e5e5e5',
+                    borderRadius: '12px',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.3s ease'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      backgroundColor: 'white',
+                      borderRadius: '50%',
+                      position: 'absolute',
+                      top: '2px',
+                      left: loop ? '26px' : '2px',
+                      transition: 'left 0.3s ease',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Timeline Scrubber */}
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{
+                position: 'relative',
+                height: '6px',
+                backgroundColor: '#e5e5e5',
+                borderRadius: '3px',
+                cursor: 'pointer'
+              }}>
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    height: '100%',
+                    width: `${duration ? (currentTime / duration) * 100 : 0}%`,
+                    backgroundColor: '#22c55e',
+                    borderRadius: '3px',
+                    transition: duration ? 'none' : 'width 0.1s ease'
+                  }}
+                />
+                <input
+                  type="range"
+                  min="0"
+                  max={duration || 100}
+                  value={currentTime}
+                  onChange={(e) => {
+                    const newTime = Number(e.target.value)
+                    handleTimelineChange(newTime)
+                    setCurrentTime(newTime) // Update immediately for smooth scrubbing
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: '-8px',
+                    left: 0,
+                    width: '100%',
+                    height: '22px',
+                    opacity: 0,
+                    cursor: 'pointer'
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${duration ? (currentTime / duration) * 100 : 0}%`,
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '16px',
+                    height: '16px',
+                    backgroundColor: '#22c55e',
+                    borderRadius: '50%',
+                    border: '2px solid white',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    pointerEvents: 'none'
+                  }}
+                />
+              </div>
+            </div>
+            
+            {/* Speed Control */}
+            <div>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                marginBottom: '8px'
+              }}>
+                <span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}>Speed:</span>
+                <span style={{ fontSize: '14px', color: '#333', fontWeight: '600' }}>{speed}x</span>
+              </div>
+              <div style={{
+                position: 'relative',
+                height: '6px',
+                backgroundColor: '#e5e5e5',
+                borderRadius: '3px',
+                cursor: 'pointer'
+              }}>
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    height: '100%',
+                    width: `${((speed - 0.1) / (3 - 0.1)) * 100}%`,
+                    backgroundColor: '#22c55e',
+                    borderRadius: '3px',
+                    transition: 'width 0.1s ease'
+                  }}
+                />
+                <input
+                  type="range"
+                  min="0.1"
+                  max="3"
+                  step="0.1"
+                  value={speed}
+                  onChange={(e) => handleSpeedChange(Number(e.target.value))}
+                  style={{
+                    position: 'absolute',
+                    top: '-8px',
+                    left: 0,
+                    width: '100%',
+                    height: '22px',
+                    opacity: 0,
+                    cursor: 'pointer'
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${((speed - 0.1) / (3 - 0.1)) * 100}%`,
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '16px',
+                    height: '16px',
+                    backgroundColor: '#22c55e',
+                    borderRadius: '50%',
+                    border: '2px solid white',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    pointerEvents: 'none'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+        
         {isLoaded && textLayers.length > 0 && (
             <div style={{
               color: 'black',
